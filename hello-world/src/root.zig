@@ -1,3 +1,5 @@
+// Creates a library, rather than an executable
+
 const std = @import("std");
 const testing = std.testing;
 

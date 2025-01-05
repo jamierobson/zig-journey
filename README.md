@@ -22,6 +22,9 @@ zig build test
 
 After doing this, I can run `zig` in the cli. Easy!
 
+# Explorations
+`zig init` creates both a `main.zig` which creates an executable, and `root.zig`, which creates a library.
+
 # References
 - [Setting up VSCode for Zig](vhttps://zig.news/jarredsumner/setting-up-visual-studio-code-for-writing-zig-kcj)
 - [Getting started with Zig](https://ziglang.org/learn/getting-started/)

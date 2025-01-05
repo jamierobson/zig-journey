@@ -1,3 +1,5 @@
+// Creates an executable
+
 const std = @import("std");
 
 pub fn main() !void {
