@@ -2,45 +2,67 @@
 
 const std = @import("std");
 const GenericWriter = std.io.GenericWriter;
+// const Tuple: std.meta.Tuple(comptime types: []const type)
 
 pub fn main() !void {
     const stdIn = std.io.getStdIn().reader();
     const stdOut = std.io.getStdOut().writer();
+    var inputBuffer: [INPUT_BUFFER_SIZE]u8 = undefined;
     try writeLine(stdOut, "Let's play the guessing game. The lower bound will be 1.");
-    const upperBound = try getUpperBound(stdIn, stdOut);
+    const upperBound = try getUpperBound(&inputBuffer, stdIn, stdOut);
 
     try writeLineWithArgs(stdOut, "Ok, let's play! Guess a number between 1 and {}", .{upperBound});
+
+    // const targetNumber: u32 = std.rand.DefaultPrng.init().random().int(u32);
+
+    try writeLine(stdOut, "Try guessing at my number now!");
 }
 
-pub fn getUpperBound(reader: anytype, writer: anytype) !u32 {
-    var inputBuffer: [INPUT_BUFFER_SIZE]u8 = undefined;
-    var validUserInput = false;
-    var upperBound: u32 = undefined;
+pub fn getNumericUserInput(inputBuffer: *[INPUT_BUFFER_SIZE]u8, reader: anytype) NumericUserInputError!u32 {
+    readUserInputIntoBuffer(reader, inputBuffer) catch {
+        return error.BufferError;
+    };
+    const consumedBufferSlice = extractUserInputSlice(inputBuffer) catch {
+        return error.BufferError;
+    };
 
-    while (!validUserInput) {
-        try writeLineWithArgs(writer, "What should the upper bound be? (Default {}). Just press enter to select the default value.", .{DEFAULT_UPPER_COUNT});
-        try readUserInputIntoBuffer(reader, &inputBuffer);
-        const consumedBufferSlice = try extractUserInputSlice(&inputBuffer);
-
-        if (consumedBufferSlice.len == 0) {
-            return DEFAULT_UPPER_COUNT;
-        }
-
-        upperBound = std.fmt.parseInt(u32, consumedBufferSlice, 10) catch {
-            try writeLineWithArgs(writer, "Come on now behave. Enter a number. Greater than 1, less than, or equal to, {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), consumedBufferSlice });
-            inputBuffer = undefined;
-            continue;
-        };
-        if (upperBound <= 1) {
-            try writeLineWithArgs(writer, "Seriously? {}? Try again. Greater than 1, this time.", .{upperBound});
-            inputBuffer = undefined;
-            continue;
-        }
-
-        validUserInput = true;
+    if (consumedBufferSlice.len == 0) {
+        return error.NoInput;
     }
 
-    return upperBound;
+    const parsedInput = std.fmt.parseInt(u32, consumedBufferSlice, 10) catch |err| {
+        switch (err) {
+            error.InvalidCharacter => return error.InvalidCharacter,
+            error.Overflow => return error.OutOfRange,
+            else => unreachable,
+        }
+    };
+
+    return parsedInput;
+}
+
+pub fn getUpperBound(inputBuffer: *[INPUT_BUFFER_SIZE]u8, reader: anytype, writer: anytype) !u32 {
+    while (true) {
+        try writeLineWithArgs(writer, "What should the upper bound be? (Default {}). Just press enter to select the default value.", .{DEFAULT_UPPER_COUNT});
+
+        const upperBound = getNumericUserInput(inputBuffer, reader) catch |err| {
+            switch (err) {
+                error.InvalidCharacter => try writeLineWithArgs(writer, "Come on now behave. Enter a number. Greater than 1, less than, or equal to, {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), inputBuffer }),
+                error.OutOfRange => try writeLineWithArgs(writer, "You entered a number too big. Choose a number between 1 and {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), inputBuffer }),
+                error.Overflow => try writeLine(writer, "You wrote too much, I couldn't handle it and had to give up. Try again"),
+                error.NoInput => return DEFAULT_UPPER_COUNT,
+            }
+
+            continue;
+        };
+
+        if (upperBound <= 1) {
+            try writeLineWithArgs(writer, "Seriously? {}? Try again. Greater than 1, this time.", .{upperBound});
+            continue;
+        }
+
+        return upperBound;
+    }
 }
 
 fn extractUserInputSlice(buffer: []u8) ![]u8 {
@@ -89,3 +111,5 @@ const RETURN_DELIMETER: comptime_int = '\r';
 const NEWLINE: *const [1:0]u8 = "\n";
 const UNDEFINED_CHARACTER: comptime_int = 0xAA;
 const DEFAULT_UPPER_COUNT: comptime_int = 10;
+
+const NumericUserInputError = error{ OutOfRange, BufferError, InvalidCharacter, NoInput };
