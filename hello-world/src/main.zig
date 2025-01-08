@@ -6,7 +6,6 @@ const GenericWriter = std.io.GenericWriter;
 pub fn main() !void {
     const stdIn = std.io.getStdIn().reader();
     const stdOut = std.io.getStdOut().writer();
-    // const arena =
     try writeLine(stdOut, "Let's play the guessing game. The lower bound will be 1.");
     const upperBound = try getUpperBound(stdIn, stdOut);
 
@@ -19,15 +18,25 @@ pub fn getUpperBound(reader: anytype, writer: anytype) !u32 {
     var upperBound: u32 = undefined;
 
     while (!validUserInput) {
-        try writeLine(writer, "What should the upper bound be? (Default 10). Just press enter to select the default value.");
+        try writeLineWithArgs(writer, "What should the upper bound be? (Default {}). Just press enter to select the default value.", .{DEFAULT_UPPER_COUNT});
         try readUserInputIntoBuffer(reader, &inputBuffer);
         const consumedBufferSlice = try extractUserInputSlice(&inputBuffer);
 
+        if (consumedBufferSlice.len == 0) {
+            return DEFAULT_UPPER_COUNT;
+        }
+
         upperBound = std.fmt.parseInt(u32, consumedBufferSlice, 10) catch {
-            try writeLineWithArgs(writer, "Come on now behave. Enter a number. Greater than 0. You entered '{any}'. Try again.", .{consumedBufferSlice});
+            try writeLineWithArgs(writer, "Come on now behave. Enter a number. Greater than 1, less than, or equal to, {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), consumedBufferSlice });
             inputBuffer = undefined;
             continue;
         };
+        if (upperBound <= 1) {
+            try writeLineWithArgs(writer, "Seriously? {}? Try again. Greater than 1, this time.", .{upperBound});
+            inputBuffer = undefined;
+            continue;
+        }
+
         validUserInput = true;
     }
 
@@ -79,3 +88,4 @@ const NEWLINE_DELIMETER: comptime_int = '\n';
 const RETURN_DELIMETER: comptime_int = '\r';
 const NEWLINE: *const [1:0]u8 = "\n";
 const UNDEFINED_CHARACTER: comptime_int = 0xAA;
+const DEFAULT_UPPER_COUNT: comptime_int = 10;
