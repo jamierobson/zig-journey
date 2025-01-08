@@ -2,20 +2,39 @@
 
 const std = @import("std");
 const GenericWriter = std.io.GenericWriter;
-// const Tuple: std.meta.Tuple(comptime types: []const type)
 
 pub fn main() !void {
     const stdIn = std.io.getStdIn().reader();
     const stdOut = std.io.getStdOut().writer();
     var inputBuffer: [INPUT_BUFFER_SIZE]u8 = undefined;
+    var guess: u32 = undefined;
+
     try writeLine(stdOut, "Let's play the guessing game. The lower bound will be 1.");
     const upperBound = try getUpperBound(&inputBuffer, stdIn, stdOut);
+    const targetNumber = std.crypto.random.intRangeAtMost(u32, 0, upperBound);
 
     try writeLineWithArgs(stdOut, "Ok, let's play! Guess a number between 1 and {}", .{upperBound});
-
-    // const targetNumber: u32 = std.rand.DefaultPrng.init().random().int(u32);
-
     try writeLine(stdOut, "Try guessing at my number now!");
+
+    while (true) {
+        guess = getNumericUserInput(&inputBuffer, stdIn) catch |err| {
+            switch (err) {
+                // todo: Write somethign here
+                error.OutOfRange => continue,
+                error.BufferError => continue,
+                error.InvalidCharacter => continue,
+                error.NoInput => continue,
+            }
+            continue;
+        };
+
+        if (guess == targetNumber) {
+            try writeLine(stdOut, "You got it! Well done you! Exiting");
+            return;
+        }
+
+        try writeLineWithArgs(stdOut, "Wrong! Try going {s}", .{if (targetNumber > guess) "higher" else "lower"});
+    }
 }
 
 pub fn getNumericUserInput(inputBuffer: *[INPUT_BUFFER_SIZE]u8, reader: anytype) NumericUserInputError!u32 {
@@ -49,7 +68,7 @@ pub fn getUpperBound(inputBuffer: *[INPUT_BUFFER_SIZE]u8, reader: anytype, write
             switch (err) {
                 error.InvalidCharacter => try writeLineWithArgs(writer, "Come on now behave. Enter a number. Greater than 1, less than, or equal to, {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), inputBuffer }),
                 error.OutOfRange => try writeLineWithArgs(writer, "You entered a number too big. Choose a number between 1 and {}. You entered '{c}'. Try again.", .{ std.math.maxInt(u32), inputBuffer }),
-                error.Overflow => try writeLine(writer, "You wrote too much, I couldn't handle it and had to give up. Try again"),
+                error.BufferError => try writeLine(writer, "You wrote too much, I couldn't handle it and had to give up. Try again"),
                 error.NoInput => return DEFAULT_UPPER_COUNT,
             }
 
