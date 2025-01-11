@@ -5,16 +5,24 @@ const consts = @import("consts.zig");
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    const cell = core.Cell.initFromValue(3, allocator);
-    const puzzle = core.SudokuPuzzle.initEmpty(allocator);
+    var puzzle = core.SudokuPuzzle.initEmpty(allocator);
 
-    std.debug.print("cell was created with value {any} \n", .{cell.value});
+    // todo: When the cells pointed to by views and columns are manipulated, all views seem to see that value get changed.
+    // However, the grid underneath that owns the data, that doesn't see the change.
+    // Also, the pointers to cells don't seem to notice the setting of the value on the grid directly. It's like the cells, and the views, have different versions of the cell?
+    puzzle.grid[1][1].value = 5;
+    puzzle.views.columns[0].members[0].*.value = 1;
+    puzzle.views.rows[8].members[8].*.value = 2;
 
-    for (0..consts.PUZZLE_MAXIMUM_VALUE - 1) |i| {
+    std.debug.print("Unholy monster of an amalgamation of all values from grid, column, then row \n \n", .{});
+
+    for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
         std.debug.print("\n", .{});
 
-        for (0..consts.PUZZLE_MAXIMUM_VALUE - 1) |j| {
-            std.debug.print("| {} |", .{puzzle.grid[i][j].value orelse 0});
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+            const rowView = &puzzle.views.rows[row];
+            const columnView = &puzzle.views.columns[column];
+            std.debug.print("| Grid: {any}, R{any}: {any}, C{any}: {any} |", .{ puzzle.grid[row][column].value orelse 0, rowView.identifier, rowView.members[column].value orelse 0, columnView.identifier, columnView.members[row].value orelse 0 });
         }
     }
 }

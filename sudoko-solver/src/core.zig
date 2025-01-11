@@ -40,19 +40,36 @@ pub const SudokuPuzzle = struct {
         var grid: CellGrid = undefined;
         var views = Views{ .rows = undefined, .columns = undefined, .blocks = undefined };
 
-        for (0..consts.PUZZLE_MAXIMUM_VALUE - 1) |i| {
-            views.rows[i] = ValidatableGroup{ .identifier = i, .members = undefined };
-            views.columns[i] = ValidatableGroup{ .identifier = i, .members = undefined };
-            views.blocks[i] = ValidatableGroup{ .identifier = i, .members = undefined };
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+            const identifier = row; // for reusing the iteration
+            views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined }; //todo: I can probably drop that identifier now. It's all identifiable by position in the collections
+            views.columns[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
+            views.blocks[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
+
+            for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+                grid[row][column] = Cell.initEmpty(allocator);
+
+                // var cell = Cell.initEmpty(allocator);
+                // grid[row][column] = cell;
+                // views.rows[row].members[column] = &cell;
+                // views.columns[column].members[row] = &cell;
+                // views.blocks[row].members[column] = &cell;
+            }
         }
 
-        for (0..consts.PUZZLE_MAXIMUM_VALUE - 1) |i| {
-            for (0..consts.PUZZLE_MAXIMUM_VALUE - 1) |j| {
-                var cell = Cell.initEmpty(allocator);
-                grid[i][j] = cell;
-                views.rows[i].members[j] = &cell;
-                views.columns[j].members[i] = &cell;
-                views.blocks[i].members[j] = &cell;
+        // todo: I would like this to not have to be a second loop. The thing is that the columns collections aren't set in time in the first loop. We can make a choice to accept that later. For now, i'd like
+        // rows and columns to look like the underlying grid, where possible, at least as I learn to interact with memory management
+
+        // I'm getting stuck here. It doesn't look like the pointer setup I have alters values correctly, or reads them so either.
+        // The goal is that each row, column, block, can use the cell, for example, when it works out if there are any duplicates among the cells in that group. Recalculating those groups all the time will be costly
+        // and I want to explore making sure that all of the memory is correctly accounted for.
+
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+            for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+                const variableCellPointer = &grid[row][column];
+                views.rows[row].members[column] = variableCellPointer;
+                views.columns[column].members[row] = variableCellPointer;
+                views.blocks[row].members[column] = variableCellPointer;
             }
         }
 
