@@ -14,7 +14,7 @@ pub const Cell = struct {
         return Cell{ .value = value, .discountedValues = std.ArrayList(usize).init(allocator) };
     }
 
-    pub fn deinit(self: *Cell) void {
+    pub fn deinit(self: Cell) void {
         self.discountedValues.deinit();
     }
 };
@@ -67,7 +67,7 @@ pub const SudokuPuzzle = struct {
         return SudokuPuzzle{ .grid = grid, .views = views };
     }
 
-    pub fn deinit(self: *SudokuPuzzle) void {
+    pub fn deinit(self: SudokuPuzzle) void {
         for (self.grid) |row| {
             for (row) |cell| {
                 cell.deinit();

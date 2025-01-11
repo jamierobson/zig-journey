@@ -25,4 +25,15 @@ pub fn main() !void {
             std.debug.print("| Grid: {any}, R{any}: {any}, C{any}: {any} |", .{ puzzle.grid[row][column].value orelse 0, rowView.identifier, rowView.members[column].value orelse 0, columnView.identifier, columnView.members[row].value orelse 0 });
         }
     }
+
+    // try use after free
+    puzzle.deinit();
+    _ = gpa.deinit();
+
+    puzzle.grid[3][3].value = 8;
+    std.debug.print(" \n \n Try use after free. 3, 3 = {any} \n ", .{puzzle.grid[3][3].value}); // interesting that this works just fine.
+
+    // try double free
+    puzzle.deinit();
+    _ = gpa.deinit();
 }
