@@ -37,7 +37,6 @@ pub const SudokuPuzzle = struct {
     views: Views,
 
     pub fn initEmpty(allocator: Allocator) SudokuPuzzle {
-        var grid: CellGrid = undefined;
         var views = Views{ .rows = undefined, .columns = undefined, .blocks = undefined };
 
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
@@ -45,16 +44,6 @@ pub const SudokuPuzzle = struct {
             views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined }; //todo: I can probably drop that identifier now. It's all identifiable by position in the collections
             views.columns[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
             views.blocks[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
-
-            for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
-                grid[row][column] = Cell.initEmpty(allocator);
-
-                // var cell = Cell.initEmpty(allocator);
-                // grid[row][column] = cell;
-                // views.rows[row].members[column] = &cell;
-                // views.columns[column].members[row] = &cell;
-                // views.blocks[row].members[column] = &cell;
-            }
         }
 
         // todo: I would like this to not have to be a second loop. The thing is that the columns collections aren't set in time in the first loop. We can make a choice to accept that later. For now, i'd like
@@ -64,15 +53,25 @@ pub const SudokuPuzzle = struct {
         // The goal is that each row, column, block, can use the cell, for example, when it works out if there are any duplicates among the cells in that group. Recalculating those groups all the time will be costly
         // and I want to explore making sure that all of the memory is correctly accounted for.
 
+        var grid: CellGrid = undefined;
+
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
             for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
-                const variableCellPointer = &grid[row][column];
-                views.rows[row].members[column] = variableCellPointer;
-                views.columns[column].members[row] = variableCellPointer;
-                views.blocks[row].members[column] = variableCellPointer;
+                grid[row][column] = Cell.initEmpty(allocator);
+                views.rows[row].members[column] = &grid[row][column];
+                views.columns[column].members[row] = &grid[row][column];
+                views.blocks[row].members[column] = &grid[row][column];
             }
         }
 
         return SudokuPuzzle{ .grid = grid, .views = views };
+    }
+
+    pub fn deinit(self: *SudokuPuzzle) void {
+        for (self.grid) |row| {
+            for (row) |cell| {
+                cell.deinit();
+            }
+        }
     }
 };

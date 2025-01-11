@@ -14,7 +14,7 @@ pub fn main() !void {
     puzzle.views.columns[0].members[0].*.value = 1;
     puzzle.views.rows[8].members[8].*.value = 2;
 
-    std.debug.print("Unholy monster of an amalgamation of all values from grid, column, then row \n \n", .{});
+    std.debug.print("Unholy monster of an amalgamation of all values from grid, row, and then column \n \n", .{});
 
     for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
         std.debug.print("\n", .{});
