@@ -25,6 +25,24 @@ After doing this, I can run `zig` in the cli. Easy!
 # Explorations
 `zig init` creates both a `main.zig` which creates an executable, and `root.zig`, which creates a library.
 
+## Imports
+
+
+Without defining a module, we need to import from specific zig files, as such:
+```
+const core = @import("core.zig"); // todo: There must be better than this?
+const consts = @import("consts.zig");
+```
+
+However, this feels wonky. Better would be an import that describes our grouped functionality. Hence, modules. In this case, in build.zig, we define the module and add as an import to the executable
+```
+    const core_mod = b.addModule("core", .{ .root_source_file = b.path("src/core.zig"), .target = target, .optimize = optimize });
+    exe.root_module.addImport("core", core_mod);
+```
+
+Note however that we replaced both `core.zig`, and `consts.zig`. This seems to be because `core.zig` already imports `consts.zig`, and so `main` was complaining that `consts` was imported twice. Changing the visibility of `consts` from `core`, we have also included `consts` in our `core` module, accessible as `core.consts`. Nice 👍.
+
+
 ## Initialization
 
 It looks like I have taken some time to understand that creating views, grid, cells and so on in the init function, that they are created on the stack and released at the end of scope. This means that I was looking at pointers to essentially freed memory. Oops!

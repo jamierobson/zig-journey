@@ -1,6 +1,5 @@
 const std = @import("std");
-const core = @import("core.zig"); // todo: There must be better than this?
-const consts = @import("consts.zig");
+const core = @import("core");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -20,14 +19,14 @@ pub fn main() !void {
 
     std.debug.print("Unholy monster of an amalgamation of all values from grid, row, and then column \n \n", .{});
 
-    for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+    for (0..core.consts.PUZZLE_MAXIMUM_VALUE) |row| {
         std.debug.print("\n", .{});
 
-        for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+        for (0..core.consts.PUZZLE_MAXIMUM_VALUE) |column| {
             const rowView = &puzzle.views.rows[row];
             const columnView = &puzzle.views.columns[column];
 
-            const blockCoordinates = core.getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
+            const blockCoordinates = core.getCellBlockCoordinates(row, column, core.consts.PUZZLE_BLOCK_ROWCOUNT, core.consts.PUZZLE_BLOCK_COLUMNCOUNT);
             const blockView = &puzzle.views.blocks[blockCoordinates.number];
             std.debug.print("| G:{any}, R{any}: {any}, C{any}: {any}, B{any}: {any} |", .{
                 puzzle.grid[row][column].value orelse 0,
