@@ -15,6 +15,8 @@ pub fn main() !void {
     puzzle.views.rows[8].cells[8].*.value = 2;
 
     puzzle.grid[5][5].setAllNeighboursTo(4);
+    puzzle.grid[0][0].setAllNeighboursTo(3);
+    puzzle.grid[8][8].setAllNeighboursTo(3);
 
     std.debug.print("Unholy monster of an amalgamation of all values from grid, row, and then column \n \n", .{});
 
@@ -24,7 +26,18 @@ pub fn main() !void {
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
             const rowView = &puzzle.views.rows[row];
             const columnView = &puzzle.views.columns[column];
-            std.debug.print("| Grid: {any}, R{any}: {any}, C{any}: {any} |", .{ puzzle.grid[row][column].value orelse 0, rowView.identifier, rowView.cells[column].value orelse 0, columnView.identifier, columnView.cells[row].value orelse 0 });
+
+            const blockCoordinates = core.getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
+            const blockView = &puzzle.views.blocks[blockCoordinates.number];
+            std.debug.print("| G:{any}, R{any}: {any}, C{any}: {any}, B{any}: {any} |", .{
+                puzzle.grid[row][column].value orelse 0,
+                rowView.identifier,
+                rowView.cells[column].value orelse 0,
+                columnView.identifier,
+                columnView.cells[row].value orelse 0,
+                blockView.identifier,
+                blockView.cells[blockCoordinates.index].value orelse 0,
+            });
         }
     }
 }

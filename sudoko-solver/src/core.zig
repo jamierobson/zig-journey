@@ -68,6 +68,13 @@ pub const Views = struct {
     blocks: [consts.PUZZLE_DIMENTION]ValidatableGroup,
 };
 
+pub fn getCellBlockCoordinates(row: usize, column: usize, rowsPerBlock: usize, columnsPerBlock: usize) struct { number: usize, index: usize } {
+    return .{
+        .number = (row / rowsPerBlock) * rowsPerBlock + (column / columnsPerBlock),
+        .index = (row % rowsPerBlock) * rowsPerBlock + (column % columnsPerBlock),
+    };
+}
+
 pub const SudokuPuzzle = struct {
     grid: CellGrid,
     views: Views,
@@ -92,12 +99,13 @@ pub const SudokuPuzzle = struct {
                 puzzle.views.rows[row].cells[column] = &(puzzle.grid[row][column]);
                 puzzle.views.columns[column].cells[row] = &(puzzle.grid[row][column]);
 
-                puzzle.views.blocks[row].cells[column] = &(puzzle.grid[row][column]); // todo: Blocks will look like rows until this is implemented properly
+                const blockCoordinates = getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
+                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = &(puzzle.grid[row][column]); // todo: This doesn't quite work as expected. Will fix
 
                 const containingGroups = [_]*ValidatableGroup{
                     &puzzle.views.rows[row],
                     &puzzle.views.columns[column],
-                    &puzzle.views.blocks[row],
+                    &puzzle.views.blocks[blockCoordinates.number],
                 };
 
                 puzzle.grid[row][column] = Cell.initEmpty(containingGroups);
