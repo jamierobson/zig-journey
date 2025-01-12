@@ -36,7 +36,44 @@ pub const SudokuPuzzle = struct {
     grid: CellGrid,
     views: Views,
 
-    pub fn initEmpty(allocator: Allocator) SudokuPuzzle {
+    pub fn initEmpty(allocator: Allocator) !*SudokuPuzzle {
+        var puzzle = try allocator.create(SudokuPuzzle);
+        errdefer allocator.destroy(puzzle);
+
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+            const identifier = row; // for reusing the iteration
+            puzzle.views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined }; //todo: Drop this identifier once we have a better understanding of what is going on
+            puzzle.views.columns[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
+            puzzle.views.blocks[identifier] = ValidatableGroup{ .identifier = identifier, .members = undefined };
+        }
+
+        // todo: I would like this to not have to be a second loop. The thing is that the columns collections aren't set in time in the first loop. We can make a choice to accept that later. For now, i'd like
+        // rows and columns to look like the underlying grid, where possible, at least as I learn to interact with memory management
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+            for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+                puzzle.grid[row][column] = Cell.initEmpty(allocator);
+                puzzle.views.rows[row].members[column] = &(puzzle.grid[row][column]);
+                puzzle.views.columns[column].members[row] = &(puzzle.grid[row][column]);
+                puzzle.views.blocks[row].members[column] = &(puzzle.grid[row][column]);
+            }
+        }
+        return puzzle;
+    }
+
+    pub fn deinit(self: SudokuPuzzle, allocator: Allocator) void {
+        for (self.grid) |row| {
+            for (row) |cell| {
+                cell.deinit();
+            }
+        }
+
+        allocator.destroy(self);
+    }
+
+    pub fn initEmpty_flawed(allocator: Allocator) SudokuPuzzle {
+
+        // Keeping this here as a comparison of something I learned.
+
         var views = Views{ .rows = undefined, .columns = undefined, .blocks = undefined };
 
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
@@ -65,13 +102,5 @@ pub const SudokuPuzzle = struct {
         }
 
         return SudokuPuzzle{ .grid = grid, .views = views };
-    }
-
-    pub fn deinit(self: SudokuPuzzle) void {
-        for (self.grid) |row| {
-            for (row) |cell| {
-                cell.deinit();
-            }
-        }
     }
 };

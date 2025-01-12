@@ -5,11 +5,10 @@ const consts = @import("consts.zig");
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    var puzzle = core.SudokuPuzzle.initEmpty(allocator);
+    var puzzle = try core.SudokuPuzzle.initEmpty(allocator);
+    // defer puzzle.deinit(allocator);
+    defer _ = gpa.deinit();
 
-    // todo: When the cells pointed to by views and columns are manipulated, all views seem to see that value get changed.
-    // However, the grid underneath that owns the data, that doesn't see the change.
-    // Also, the pointers to cells don't seem to notice the setting of the value on the grid directly. It's like the cells, and the views, have different versions of the cell?
     puzzle.grid[1][1].value = 5;
     puzzle.views.columns[0].members[0].*.value = 1;
     puzzle.views.rows[8].members[8].*.value = 2;
@@ -26,14 +25,14 @@ pub fn main() !void {
         }
     }
 
-    // try use after free
-    puzzle.deinit();
-    _ = gpa.deinit();
+    // // try use after free
+    // puzzle.deinit();
+    // _ = gpa.deinit();
 
-    puzzle.grid[3][3].value = 8;
-    std.debug.print(" \n \n Try use after free. 3, 3 = {any} \n ", .{puzzle.grid[3][3].value}); // interesting that this works just fine.
+    // puzzle.grid[3][3].value = 8;
+    // std.debug.print(" \n \n Try use after free. 3, 3 = {any} \n ", .{puzzle.grid[3][3].value}); // interesting that this works just fine.
 
-    // try double free
-    puzzle.deinit();
-    _ = gpa.deinit();
+    // // try double free
+    // puzzle.deinit();
+    // _ = gpa.deinit();
 }
