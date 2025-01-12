@@ -100,7 +100,7 @@ pub const SudokuPuzzle = struct {
                 puzzle.views.columns[column].cells[row] = &(puzzle.grid[row][column]);
 
                 const blockCoordinates = getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
-                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = &(puzzle.grid[row][column]); // todo: This doesn't quite work as expected. Will fix
+                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = &(puzzle.grid[row][column]);
 
                 const containingGroups = [_]*ValidatableGroup{
                     &puzzle.views.rows[row],

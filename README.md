@@ -105,7 +105,9 @@ Below, using the `allocator.create` to make sure that the initialized resources 
                 puzzle.grid[row][column] = Cell.initEmpty(allocator);
                 puzzle.views.rows[row].members[column] = &(puzzle.grid[row][column]);
                 puzzle.views.columns[column].members[row] = &(puzzle.grid[row][column]);
-                puzzle.views.blocks[row].members[column] = &(puzzle.grid[row][column]);
+
+                const blockCoordinates = getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
+                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = &(puzzle.grid[row][column]);
             }
         }
         return puzzle;
