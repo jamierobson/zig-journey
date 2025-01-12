@@ -30,6 +30,10 @@ pub const Cell = struct {
         }
     }
 
+    pub fn disqualifyValue(self: *Cell, value: usize) void {
+        self.candidateValues[value - 1].isCandidate = false; // Note that value is 1- based, while index is 0- based;
+    }
+
     /// Use this to test that you can update all neighbours
     pub fn setAllNeighboursTo(self: *Cell, value: usize) void {
         for (self._containedInGroups) |group| {
@@ -52,12 +56,7 @@ pub const ValidatableGroup = struct {
 
     pub fn eliminateCandidateFromAllCells(self: *ValidatableGroup, value: usize) void {
         for (self.cells) |cell| {
-            for (cell.candidateValues) |candidateValue| {
-                if (candidateValue.value == value) {
-                    candidateValue.isCandidate = false;
-                    break;
-                }
-            }
+            cell.disqualifyValue(value);
         }
     }
 };
