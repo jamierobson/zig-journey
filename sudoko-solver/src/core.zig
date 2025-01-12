@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 pub const CandidateValue = struct { value: usize, isCandidate: bool };
 
 pub const Cell = struct {
-    value: ?usize,
+    _value: ?usize,
     candidateValues: [consts.PUZZLE_MAXIMUM_VALUE]CandidateValue,
     _containedInGroups: [3]*ValidatableGroup, // Used when we set a value, and cascade that value change such that it is disqualified from all cells in the same row, column, and block.
 
@@ -20,11 +20,15 @@ pub const Cell = struct {
             candidateValues[i - 1] = CandidateValue{ .value = i, .isCandidate = value == null or value == i };
         }
 
-        return Cell{ .value = value, .candidateValues = candidateValues, ._containedInGroups = referencedBy };
+        return Cell{ ._value = value, .candidateValues = candidateValues, ._containedInGroups = referencedBy };
+    }
+
+    pub fn getValue(self: *Cell) ?usize {
+        return self._value;
     }
 
     pub fn setValue(self: *Cell, value: usize) void {
-        self.value = value;
+        self._value = value;
         for (self._containedInGroups) |group| {
             group.eliminateCandidateFromAllCells(value);
         }
@@ -38,7 +42,7 @@ pub const Cell = struct {
     pub fn setAllNeighboursTo(self: *Cell, value: usize) void {
         for (self._containedInGroups) |group| {
             for (group.cells) |cell| {
-                cell.value = value;
+                cell._value = value;
             }
         }
     }

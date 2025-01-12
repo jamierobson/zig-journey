@@ -23,7 +23,11 @@ zig build test
 After doing this, I can run `zig` in the cli. Easy!
 
 # Explorations
+## Structure
 `zig init` creates both a `main.zig` which creates an executable, and `root.zig`, which creates a library.
+
+## Accessibility
+It seems like a function can be declared private or public, a struct, and so on. Fields on that struct however seem to be always public. From what I'm reading, prefixing with underscore seems to be a preferred way to indicate that we prefer the member being private.
 
 ## Imports
 
