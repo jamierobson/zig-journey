@@ -13,6 +13,25 @@ pub const Cell = struct {
         return initFromValue(null, referencedBy);
     }
 
+    pub fn autocompleteValueIfOnlyOneCanndidateRemaining(self: *Cell) void {
+        if (self._value != null) {
+            return;
+        }
+
+        var lastConsideredCandidate: ?usize = null;
+
+        for (self.candidateValues) |candidate| {
+            if (candidate.isCandidate) {
+                if (lastConsideredCandidate != null) {
+                    return; // Second candidate value found, so we can't reliably autocomplete
+                }
+                lastConsideredCandidate = candidate.value;
+            }
+        }
+
+        self._value = lastConsideredCandidate;
+    }
+
     pub fn initFromValue(value: ?usize, referencedBy: [3]*ValidatableGroup) Cell {
         var candidateValues = [_]CandidateValue{undefined} ** consts.PUZZLE_MAXIMUM_VALUE;
 
@@ -126,3 +145,53 @@ pub const SudokuPuzzle = struct {
         allocator.destroy(self);
     }
 };
+
+test "autocomplete cell when single candidate" {
+    var cell = Cell.initEmpty([_]*ValidatableGroup{undefined} ** 3);
+
+    const expectedValue = 6;
+
+    for (&cell.candidateValues) |*candidate| {
+        if (candidate.value != expectedValue) {
+            candidate.isCandidate = false;
+        }
+    }
+
+    cell.autocompleteValueIfOnlyOneCanndidateRemaining();
+
+    try std.testing.expectEqual(expectedValue, cell._value);
+}
+
+test "autocomplete cell when more than one candidate leaves value as null" {
+    var cell = Cell.initEmpty([_]*ValidatableGroup{undefined} ** 3);
+    cell.candidateValues[0].isCandidate = false;
+    cell.candidateValues[1].isCandidate = false;
+    cell.candidateValues[2].isCandidate = true;
+    cell.candidateValues[3].isCandidate = true;
+
+    cell.autocompleteValueIfOnlyOneCanndidateRemaining();
+
+    try std.testing.expectEqual(cell._value, null);
+}
+
+test "autocomplete cell when value set does not alter value" {
+    var cell = Cell.initEmpty([_]*ValidatableGroup{undefined} ** 3);
+
+    const expectedValue = 3;
+    const onlyRemainingCandidateValue = 6;
+
+    for (&cell.candidateValues) |*candidate| {
+        if (candidate.value != onlyRemainingCandidateValue) {
+            candidate.isCandidate = false;
+        }
+    }
+
+    cell._value = expectedValue;
+    cell.autocompleteValueIfOnlyOneCanndidateRemaining();
+
+    try std.testing.expectEqual(cell._value, expectedValue);
+}
+
+test "autocomplete cell when no valid candidates - this scenario needs considering" {
+    // todo: This test is here as a reminder to consider this scenario, especially when we get to an attempt to brute force a solution
+}
