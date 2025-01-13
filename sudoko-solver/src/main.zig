@@ -6,8 +6,12 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(gpa.allocator());
     defer arena.deinit();
 
-    var puzzle = try core.SudokuPuzzle.create(arena.allocator());
-    defer puzzle.destroy(arena.allocator());
+    try runTest(arena.allocator());
+}
+
+fn runTest(allocator: std.mem.Allocator) !void {
+    var puzzle = try core.SudokuPuzzle.create(allocator);
+    defer puzzle.destroy(allocator);
 
     puzzle.grid[1][1].setValue(5);
     puzzle.views.blocks[4].cells[1].setValue(2);
