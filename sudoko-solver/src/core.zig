@@ -98,6 +98,7 @@ pub fn getCellBlockCoordinates(row: usize, column: usize, rowsPerBlock: usize, c
 }
 
 pub const SudokuPuzzle = struct {
+    _allocator: Allocator,
     grid: CellGrid,
     views: Views,
 
@@ -107,9 +108,11 @@ pub const SudokuPuzzle = struct {
             allocator.destroy(puzzle);
         }
 
+        puzzle._allocator = allocator;
+
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
             const identifier = row; // for reusing the iteration
-            puzzle.views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined }; //todo: Drop this identifier once we have a better understanding of what is going on
+            puzzle.views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
             puzzle.views.columns[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
             puzzle.views.blocks[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
         }
@@ -136,13 +139,13 @@ pub const SudokuPuzzle = struct {
         return puzzle;
     }
 
-    pub fn destroy(self: *SudokuPuzzle, allocator: Allocator) void {
+    pub fn destroy(self: *SudokuPuzzle) void {
         for (self.grid) |cellRow| {
             for (cellRow) |cell| {
                 cell.deinit();
             }
         }
-        allocator.destroy(self);
+        self._allocator.destroy(self);
     }
 };
 

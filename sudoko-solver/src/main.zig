@@ -11,7 +11,7 @@ pub fn main() !void {
 
 fn runTest(allocator: std.mem.Allocator) !void {
     var puzzle = try core.SudokuPuzzle.create(allocator);
-    defer puzzle.destroy(allocator);
+    defer puzzle.destroy();
 
     puzzle.grid[1][1].setValue(5);
     puzzle.views.blocks[4].cells[1].setValue(2);
