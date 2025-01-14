@@ -5,12 +5,26 @@ const Allocator = std.mem.Allocator;
 pub const CandidateValue = struct { value: usize, isCandidate: bool };
 
 pub const Cell = struct {
+    _allocator: Allocator,
     _value: ?usize,
-    candidateValues: [consts.PUZZLE_MAXIMUM_VALUE]CandidateValue,
+    _candidateValues: [consts.PUZZLE_MAXIMUM_VALUE]CandidateValue,
     _containedInGroups: [3]*ValidatableGroup, // Used when we set a value, and cascade that value change such that it is disqualified from all cells in the same row, column, and block.
 
-    pub fn initEmpty(referencedBy: [3]*ValidatableGroup) Cell {
-        return initFromValue(null, referencedBy);
+    pub fn create(value: ?usize, row: *ValidatableGroup, column: *ValidatableGroup, block: *ValidatableGroup, allocator: Allocator) !*Cell {
+        var cell = try allocator.create(Cell);
+
+        var candidateValues = [_]CandidateValue{undefined} ** consts.PUZZLE_MAXIMUM_VALUE;
+
+        for (1..consts.PUZZLE_MAXIMUM_VALUE + 1) |i| {
+            candidateValues[i - 1] = CandidateValue{ .value = i, .isCandidate = value == null or value == i };
+        }
+
+        cell._allocator = allocator;
+        cell._value = value;
+        cell._containedInGroups = [3]*ValidatableGroup{ row, column, block };
+        cell._candidateValues = candidateValues;
+
+        return cell;
     }
 
     pub fn autocompleteValueIfOnlyOneCanndidateRemaining(self: *Cell) void {
@@ -32,16 +46,6 @@ pub const Cell = struct {
         self._value = lastConsideredCandidate;
     }
 
-    pub fn initFromValue(value: ?usize, referencedBy: [3]*ValidatableGroup) Cell {
-        var candidateValues = [_]CandidateValue{undefined} ** consts.PUZZLE_MAXIMUM_VALUE;
-
-        for (1..consts.PUZZLE_MAXIMUM_VALUE + 1) |i| {
-            candidateValues[i - 1] = CandidateValue{ .value = i, .isCandidate = value == null or value == i };
-        }
-
-        return Cell{ ._value = value, .candidateValues = candidateValues, ._containedInGroups = referencedBy };
-    }
-
     pub fn getValue(self: *Cell) ?usize {
         return self._value;
     }
@@ -54,7 +58,7 @@ pub const Cell = struct {
     }
 
     pub fn disqualifyValue(self: *Cell, value: usize) void {
-        self.candidateValues[value - 1].isCandidate = false; // Note that value is 1- based, while index is 0- based;
+        self._candidateValues[value - 1].isCandidate = false; // Note that value is 1- based, while index is 0- based;
     }
 
     /// Use this to test that you can update all neighbours
@@ -66,12 +70,12 @@ pub const Cell = struct {
         }
     }
 
-    pub fn deinit(self: Cell) void {
-        _ = self; // provide deinit for consistency
+    pub fn destroy(self: *Cell) void {
+        self._allocator.destroy(self);
     }
 };
 
-pub const CellGrid = [consts.PUZZLE_DIMENTION][consts.PUZZLE_DIMENTION]Cell;
+pub const CellGrid = [consts.PUZZLE_DIMENTION][consts.PUZZLE_DIMENTION]*Cell;
 
 pub const ValidatableGroup = struct {
     identifier: usize,
@@ -102,38 +106,53 @@ pub const SudokuPuzzle = struct {
     grid: CellGrid,
     views: Views,
 
-    pub fn create(allocator: Allocator) !*SudokuPuzzle {
+    // pub fn createFromValues(allocator: Allocator) !*SudokuPuzzle {
+    //     var puzzle = try createWithoutCells(allocator);
+    //     errdefer {
+    //         allocator.destroy(puzzle);
+    //     }
+
+    //     return puzzle;
+    // }
+
+    fn createEmpty(allocator: Allocator) !*SudokuPuzzle {
         var puzzle = try allocator.create(SudokuPuzzle);
         errdefer {
             allocator.destroy(puzzle);
         }
 
         puzzle._allocator = allocator;
-
-        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
-            const identifier = row; // for reusing the iteration
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |identifier| {
             puzzle.views.rows[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
             puzzle.views.columns[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
             puzzle.views.blocks[identifier] = ValidatableGroup{ .identifier = identifier, .cells = undefined };
         }
 
-        // todo: I would like this to not have to be a second loop. The thing is that the columns collections aren't set in time in the first loop. We can make a choice to accept that later. For now, i'd like
-        // rows and columns to look like the underlying grid, where possible, at least as I learn to interact with memory management
+        return puzzle;
+    }
+
+    pub fn create(allocator: Allocator) !*SudokuPuzzle {
+        var puzzle = try createEmpty(allocator);
+        errdefer {
+            allocator.destroy(puzzle);
+        }
+
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
             for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
-                puzzle.views.rows[row].cells[column] = &(puzzle.grid[row][column]);
-                puzzle.views.columns[column].cells[row] = &(puzzle.grid[row][column]);
-
                 const blockCoordinates = getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
-                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = &(puzzle.grid[row][column]);
 
-                const containingGroups = [_]*ValidatableGroup{
+                const cell = try Cell.create(
+                    null,
                     &puzzle.views.rows[row],
                     &puzzle.views.columns[column],
                     &puzzle.views.blocks[blockCoordinates.number],
-                };
+                    allocator,
+                );
+                puzzle.grid[row][column] = cell;
 
-                puzzle.grid[row][column] = Cell.initEmpty(containingGroups);
+                puzzle.views.rows[row].cells[column] = puzzle.grid[row][column];
+                puzzle.views.columns[column].cells[row] = puzzle.grid[row][column];
+                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = puzzle.grid[row][column];
             }
         }
         return puzzle;
@@ -142,7 +161,7 @@ pub const SudokuPuzzle = struct {
     pub fn destroy(self: *SudokuPuzzle) void {
         for (self.grid) |cellRow| {
             for (cellRow) |cell| {
-                cell.deinit();
+                cell.destroy();
             }
         }
         self._allocator.destroy(self);

@@ -3,10 +3,11 @@ const core = @import("core");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
+    defer _ = gpa.deinit();
+    // var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    // defer arena.deinit();
 
-    try runTest(arena.allocator());
+    try runTest(gpa.allocator());
 }
 
 fn runTest(allocator: std.mem.Allocator) !void {
