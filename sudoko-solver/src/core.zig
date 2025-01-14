@@ -94,10 +94,18 @@ pub const Views = struct {
     blocks: [consts.PUZZLE_DIMENTION]ValidatableGroup,
 };
 
-pub fn getCellBlockCoordinates(row: usize, column: usize, rowsPerBlock: usize, columnsPerBlock: usize) struct { number: usize, index: usize } {
+pub const GroupReferences = struct { row: usize, column: usize, block: struct { number: usize, index: usize } };
+
+pub fn getCellGroupReferences(row: usize, column: usize) GroupReferences {
+    const rowsPerBlock = consts.PUZZLE_BLOCK_ROWCOUNT;
+    const columnsPerBlock = consts.PUZZLE_BLOCK_COLUMNCOUNT;
     return .{
-        .number = (row / rowsPerBlock) * rowsPerBlock + (column / columnsPerBlock),
-        .index = (row % rowsPerBlock) * rowsPerBlock + (column % columnsPerBlock),
+        .row = row,
+        .column = column,
+        .block = .{
+            .number = (row / rowsPerBlock) * rowsPerBlock + (column / columnsPerBlock),
+            .index = (row % rowsPerBlock) * rowsPerBlock + (column % columnsPerBlock),
+        },
     };
 }
 
@@ -106,14 +114,22 @@ pub const SudokuPuzzle = struct {
     grid: CellGrid,
     views: Views,
 
-    // pub fn createFromValues(allocator: Allocator) !*SudokuPuzzle {
-    //     var puzzle = try createWithoutCells(allocator);
-    //     errdefer {
-    //         allocator.destroy(puzzle);
-    //     }
-
-    //     return puzzle;
-    // }
+    pub fn createFromValues(values: [consts.PUZZLE_TOTAL_CELL_COUNT]?usize, allocator: Allocator) !*SudokuPuzzle {
+        var puzzle = try createEmpty(allocator);
+        errdefer {
+            allocator.destroy(puzzle);
+        }
+        puzzle._allocator = allocator;
+        var i: usize = 0;
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
+            for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
+                const cellGroupReferences = getCellGroupReferences(row, column);
+                try createAndAssignCell(puzzle, values[i], cellGroupReferences, allocator);
+                i += 1;
+            }
+        }
+        return puzzle;
+    }
 
     fn createEmpty(allocator: Allocator) !*SudokuPuzzle {
         var puzzle = try allocator.create(SudokuPuzzle);
@@ -131,28 +147,31 @@ pub const SudokuPuzzle = struct {
         return puzzle;
     }
 
+    fn createAndAssignCell(puzzle: *SudokuPuzzle, value: ?usize, references: GroupReferences, allocator: Allocator) !void {
+        const cell = try Cell.create(
+            value,
+            &puzzle.views.rows[references.row],
+            &puzzle.views.columns[references.column],
+            &puzzle.views.blocks[references.block.number],
+            allocator,
+        );
+
+        puzzle.grid[references.row][references.column] = cell;
+        puzzle.views.rows[references.row].cells[references.column] = cell;
+        puzzle.views.columns[references.column].cells[references.row] = cell;
+        puzzle.views.blocks[references.block.number].cells[references.block.index] = cell;
+    }
+
     pub fn create(allocator: Allocator) !*SudokuPuzzle {
-        var puzzle = try createEmpty(allocator);
+        const puzzle = try createEmpty(allocator);
         errdefer {
             allocator.destroy(puzzle);
         }
 
         for (0..consts.PUZZLE_MAXIMUM_VALUE) |row| {
             for (0..consts.PUZZLE_MAXIMUM_VALUE) |column| {
-                const blockCoordinates = getCellBlockCoordinates(row, column, consts.PUZZLE_BLOCK_ROWCOUNT, consts.PUZZLE_BLOCK_COLUMNCOUNT);
-
-                const cell = try Cell.create(
-                    null,
-                    &puzzle.views.rows[row],
-                    &puzzle.views.columns[column],
-                    &puzzle.views.blocks[blockCoordinates.number],
-                    allocator,
-                );
-                puzzle.grid[row][column] = cell;
-
-                puzzle.views.rows[row].cells[column] = puzzle.grid[row][column];
-                puzzle.views.columns[column].cells[row] = puzzle.grid[row][column];
-                puzzle.views.blocks[blockCoordinates.number].cells[blockCoordinates.index] = puzzle.grid[row][column];
+                const cellGroupReferences = getCellGroupReferences(row, column);
+                try createAndAssignCell(puzzle, null, cellGroupReferences, allocator);
             }
         }
         return puzzle;
@@ -216,4 +235,78 @@ test "autocomplete cell when value set does not alter value" {
 
 test "autocomplete cell when no valid candidates - this scenario needs considering" {
     // todo: This test is here as a reminder to consider this scenario, especially when we get to an attempt to brute force a solution
+}
+
+test "can create empty sudoku from values" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const values = [_]?usize{null} ** consts.PUZZLE_TOTAL_CELL_COUNT;
+    const puzzle = try SudokuPuzzle.createFromValues(values, gpa.allocator());
+
+    for (0..consts.PUZZLE_MAXIMUM_VALUE) |i| {
+        for (0..consts.PUZZLE_MAXIMUM_VALUE) |j| {
+            try std.testing.expectEqual(null, puzzle.grid[i][j].getValue());
+        }
+    }
+}
+
+test "can create sudoku from with values" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const values = [_]?usize{null} ** consts.PUZZLE_TOTAL_CELL_COUNT;
+    values[0] = 1;
+    values[81] = 8;
+    const puzzle = try SudokuPuzzle.createFromValues(values, gpa.allocator());
+
+    try std.testing.expectEqual(1, puzzle.grid[0][0].getValue());
+    try std.testing.expectEqual(8, puzzle.grid[8][8].getValue());
+}
+
+const ReferenceWithValue = struct {
+    references: GroupReferences,
+    value: usize,
+    fn init(row: usize, column: usize, value: usize) ReferenceWithValue {
+        return .{ .references = getCellGroupReferences(row, column), .value = value };
+    }
+};
+
+test "rows, blocks, columns, are different" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const puzzle = try SudokuPuzzle.create(gpa.allocator());
+
+    try std.testing.expect(&puzzle.views.blocks != &puzzle.views.rows);
+    try std.testing.expect(&puzzle.views.blocks != &puzzle.views.columns);
+    try std.testing.expect(&puzzle.views.rows != &puzzle.views.columns);
+
+    std.debug.print("\n grid {*} \n blocks {*} \n rows {*} \n columns {*} \n", .{
+        &puzzle.grid,
+        &puzzle.views.blocks,
+        &puzzle.views.rows,
+        &puzzle.views.columns,
+    });
+}
+
+test "rows, blocks, columns, all point at same data as the raw cell grid" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var puzzle = try SudokuPuzzle.create(gpa.allocator());
+
+    const Test_1_1 = ReferenceWithValue.init(1, 1, 5);
+    const Test_4_4 = ReferenceWithValue.init(4, 4, 4);
+    const Test_6_0 = ReferenceWithValue.init(6, 0, 6);
+    const Test_8_8 = ReferenceWithValue.init(8, 8, 2);
+    const Test_0_7 = ReferenceWithValue.init(0, 7, 7);
+    const Test_8_0 = ReferenceWithValue.init(8, 0, 3);
+
+    puzzle.grid[Test_1_1.references.row][Test_1_1.references.column].setValue(Test_1_1.value);
+    puzzle.grid[Test_4_4.references.row][Test_4_4.references.column].*.setValue(Test_4_4.value);
+    puzzle.grid[Test_6_0.references.row][Test_6_0.references.column].*._value = Test_6_0.value;
+    puzzle.views.blocks[Test_8_8.references.block.number].cells[Test_8_8.references.block.index].setValue(Test_8_8.value);
+    puzzle.views.columns[Test_0_7.references.column].cells[Test_0_7.references.row].*._value = Test_0_7.value;
+    puzzle.views.rows[Test_8_0.references.row].cells[Test_8_0.references.column]._value = Test_8_0.value;
+
+    for ([_]ReferenceWithValue{ Test_1_1, Test_4_4, Test_6_0, Test_8_0, Test_8_8, Test_0_7 }) |testData| {
+        try std.testing.expectEqual(testData.value, puzzle.grid[testData.references.row][testData.references.column].getValue());
+        try std.testing.expectEqual(testData.value, puzzle.grid[testData.references.row][testData.references.column].*._value);
+        try std.testing.expectEqual(testData.value, puzzle.views.rows[testData.references.row].cells[testData.references.column].getValue());
+        try std.testing.expectEqual(testData.value, puzzle.views.columns[testData.references.column].cells[testData.references.row].getValue());
+        try std.testing.expectEqual(testData.value, puzzle.views.blocks[testData.references.block.number].cells[testData.references.block.index].getValue());
+    }
 }

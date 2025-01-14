@@ -29,11 +29,11 @@ fn runTest(allocator: std.mem.Allocator) !void {
         std.debug.print("\n", .{});
 
         for (0..core.consts.PUZZLE_MAXIMUM_VALUE) |column| {
+            const groups = core.getCellGroupReferences(row, column);
+
             const rowView = &puzzle.views.rows[row];
             const columnView = &puzzle.views.columns[column];
-
-            const blockCoordinates = core.getCellBlockCoordinates(row, column, core.consts.PUZZLE_BLOCK_ROWCOUNT, core.consts.PUZZLE_BLOCK_COLUMNCOUNT);
-            const blockView = &puzzle.views.blocks[blockCoordinates.number];
+            const blockView = &puzzle.views.blocks[groups.block.number];
             std.debug.print("| G:{any}, R{any}: {any}, C{any}: {any}, B{any}: {any} |", .{
                 puzzle.grid[row][column].getValue() orelse 0,
                 rowView.identifier,
@@ -41,7 +41,7 @@ fn runTest(allocator: std.mem.Allocator) !void {
                 columnView.identifier,
                 columnView.cells[row].getValue() orelse 0,
                 blockView.identifier,
-                blockView.cells[blockCoordinates.index].getValue() orelse 0,
+                blockView.cells[groups.block.index].getValue() orelse 0,
             });
         }
     }
